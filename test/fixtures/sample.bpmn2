@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             id="sample-definitions"
+             targetNamespace="https://example.com/bpmn">
+  <process id="sample_process" isExecutable="true">
+    <startEvent id="StartEvent_1" />
+    <endEvent id="EndEvent_1" />
+    <sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="EndEvent_1" />
+  </process>
+</definitions>
