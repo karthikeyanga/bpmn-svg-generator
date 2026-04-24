@@ -1,6 +1,6 @@
 {
   "name": "bpmn-svg-generator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Reusable BPMN-to-SVG generator for Kogito-compatible process SVG assets.",
   "type": "module",
   "files": [
@@ -10,7 +10,7 @@
     "LICENSE"
   ],
   "bin": {
-    "bpmn-svg": "./bin/bpmn-svg.js"
+    "bpmn-svg": "bin/bpmn-svg.js"
   },
   "scripts": {
     "test": "node --test",
