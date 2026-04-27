@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { buildBpmnCatalog, discoverBpmnFiles } from "./discovery.mjs";
-import { readMetadataComment } from "./metadata.mjs";
 import { getSvgOutputDir, resolveConsumerRoot } from "./paths.mjs";
 
 async function listSvgFiles(svgOutputDir) {
@@ -34,9 +33,8 @@ export async function runVerify(options) {
   for (const descriptor of descriptors) {
     const svgPath = path.join(svgOutputDir, `${descriptor.processId}.svg`);
     try {
-      const svgContent = await fs.readFile(svgPath, "utf8");
-      const metadata = readMetadataComment(svgContent);
-      if (!metadata || metadata.sha256 !== descriptor.sha256 || metadata.processId !== descriptor.processId) {
+      const [svgStats, bpmnStats] = await Promise.all([fs.stat(svgPath), fs.stat(descriptor.filePath)]);
+      if (svgStats.mtimeMs < bpmnStats.mtimeMs) {
         stale.push({ processId: descriptor.processId, svgPath, sourcePath: descriptor.filePath });
       }
     } catch (error) {
@@ -49,13 +47,8 @@ export async function runVerify(options) {
   }
 
   for (const svgPath of svgFiles) {
-    const svgContent = await fs.readFile(svgPath, "utf8");
-    const metadata = readMetadataComment(svgContent);
     const processId = path.basename(svgPath, ".svg");
     if (!expectedByProcessId.has(processId)) {
-      orphaned.push({ processId, svgPath });
-    }
-    if (metadata && metadata.processId && metadata.processId !== processId) {
       orphaned.push({ processId, svgPath });
     }
   }

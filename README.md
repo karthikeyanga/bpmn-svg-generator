@@ -142,14 +142,7 @@ The renderer creates short-lived host files in the operating system temp directo
 
 ## Verification model
 
-Generated SVGs include a small metadata comment recording:
-
-- generator version
-- source BPMN relative path
-- BPMN content SHA-256
-- process id
-
-`verify` uses that metadata to report:
+`verify` checks generated outputs by filename and file freshness. It reports:
 
 - missing SVGs
 - stale SVGs

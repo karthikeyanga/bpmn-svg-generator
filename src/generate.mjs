@@ -2,11 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { buildBpmnCatalog, discoverBpmnFiles } from "./discovery.mjs";
 import { findChangedBpmnFiles } from "./git.mjs";
-import { prependMetadataComment } from "./metadata.mjs";
 import { resolveConsumerRoot, getRelativeToRoot, getSvgOutputDir, toPosix } from "./paths.mjs";
-import { GENERATOR_VERSION } from "./constants.mjs";
 import { readBpmnDescriptor } from "./bpmn.mjs";
 import { renderSvg } from "./renderer.mjs";
+import { sanitizeSvgOutput } from "./svg.mjs";
 
 function getConfiguredSvgOutputPath(consumerRoot, outputDir, processId) {
   return path.join(getSvgOutputDir(consumerRoot, outputDir), `${processId}.svg`);
@@ -56,12 +55,7 @@ export async function runGenerate(options) {
       bpmnXml: descriptor.xml,
       sourcePathLabel: getRelativeToRoot(consumerRoot, descriptor.filePath),
     });
-    const content = prependMetadataComment(svg, {
-      version: GENERATOR_VERSION,
-      processId: descriptor.processId,
-      source: getRelativeToRoot(consumerRoot, descriptor.filePath),
-      sha256: descriptor.sha256,
-    });
+    const content = sanitizeSvgOutput(svg);
 
     await fs.writeFile(outputPath, content, "utf8");
     console.log(`${toPosix(descriptor.filePath)} -> ${toPosix(outputPath)}`);
