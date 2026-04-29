@@ -24,10 +24,18 @@ Initial standalone CLI scaffold with:
 
 ```bash
 npm install
+```
+
+On first render, the tool bootstraps Playwright's managed headless Chromium runtime automatically if it is missing.
+
+If you want to preinstall the browser explicitly, run either of these:
+
+```bash
+npx bpmn-svg install-browser
 npx playwright install chromium
 ```
 
-This installs Playwright's managed headless Chromium runtime. The tool does not require a system Chrome install or a hardcoded Chrome path.
+The tool does not require a system Chrome install or a hardcoded Chrome path.
 
 ## Commands
 
@@ -73,7 +81,6 @@ Use the same commands in CI:
 
 ```bash
 npm ci
-npx playwright install chromium
 npx bpmn-svg verify --root "$WORKSPACE/engine"
 ```
 
@@ -81,8 +88,13 @@ For generation jobs:
 
 ```bash
 npm ci
-npx playwright install chromium
 npx bpmn-svg generate --root "$WORKSPACE/engine" --all
+```
+
+If your CI image is network-restricted during the build step, preinstall the Playwright browser in the image or in an earlier setup step:
+
+```bash
+npx bpmn-svg install-browser
 ```
 
 If CI needs artifacts outside the consumer repo, pass `--output-dir`:

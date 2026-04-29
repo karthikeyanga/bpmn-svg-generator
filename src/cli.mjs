@@ -1,9 +1,11 @@
 import path from "node:path";
 import { runGenerate } from "./generate.mjs";
+import { installChromiumBrowser } from "./playwright.mjs";
 import { runVerify } from "./verify.mjs";
 
 function printHelp() {
   console.log(`Usage:
+  bpmn-svg install-browser
   bpmn-svg generate --root <consumer-repo> --all [--output-dir <dir>]
   bpmn-svg generate --root <consumer-repo> --changed --base <git-ref> [--output-dir <dir>]
   bpmn-svg generate --input <bpmn-file> [--root <consumer-repo>] [--output-dir <dir>]
@@ -66,6 +68,11 @@ export async function main(argv) {
 
   if (!args.command || args.help) {
     printHelp();
+    return;
+  }
+
+  if (args.command === "install-browser") {
+    await installChromiumBrowser();
     return;
   }
 

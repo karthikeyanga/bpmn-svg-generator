@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readBpmnDescriptor } from "../src/bpmn.mjs";
 import { getSvgOutputDir } from "../src/paths.mjs";
+import { isMissingPlaywrightBrowserError } from "../src/playwright.mjs";
 import { sanitizeSvgOutput } from "../src/svg.mjs";
 
 const fixturePath = path.resolve("test/fixtures/sample.bpmn2");
@@ -28,4 +29,14 @@ test("resolves custom output directory against the consumer root", () => {
   );
   assert.equal(getSvgOutputDir(consumerRoot, "target/processSVG"), path.resolve("/workspace/engine/target/processSVG"));
   assert.equal(getSvgOutputDir(consumerRoot, "/tmp/processSVG"), path.resolve("/tmp/processSVG"));
+});
+
+test("detects missing playwright browser errors", () => {
+  assert.equal(
+    isMissingPlaywrightBrowserError(
+      new Error("browserType.launch: Executable doesn't exist at /tmp/playwright/chromium/chrome")
+    ),
+    true
+  );
+  assert.equal(isMissingPlaywrightBrowserError(new Error("some other error")), false);
 });

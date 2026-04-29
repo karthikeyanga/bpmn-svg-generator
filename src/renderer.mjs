@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
+import { installChromiumBrowser, isMissingPlaywrightBrowserError } from "./playwright.mjs";
 
 const require = createRequire(import.meta.url);
 const standaloneBundlePath = require.resolve("@kie-tools/kie-editors-standalone/dist/bpmn/index.js");
@@ -46,11 +47,23 @@ export async function renderSvg({
   sourcePathLabel,
   timeoutMs = Number(process.env.BPMN_SVG_RENDER_TIMEOUT_MS || 90000),
 }) {
-  const browser = await chromium.launch({ headless: true });
+  let browser;
   const browserMessages = [];
   let tempDir;
 
   try {
+    try {
+      browser = await chromium.launch({ headless: true });
+    } catch (error) {
+      if (!isMissingPlaywrightBrowserError(error)) {
+        throw error;
+      }
+
+      console.error("Playwright Chromium is not installed yet. Bootstrapping it now...");
+      await installChromiumBrowser();
+      browser = await chromium.launch({ headless: true });
+    }
+
     const hostPage = await createHostPage();
     tempDir = hostPage.tempDir;
 
@@ -95,7 +108,9 @@ export async function renderSvg({
 
     return svg.trim();
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+    }
     if (tempDir) {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
