@@ -5,7 +5,7 @@ Portable BPMN-to-SVG generator for Kogito-style process diagrams.
 This utility is intended to replace ad hoc machine-local scripts with a repo-managed workflow:
 
 - dependencies declared in the utility repo
-- no `/tmp/...` imports
+- no machine-local imports
 - no hardcoded Chrome path
 - Kogito-compatible output under `src/main/resources/META-INF/processSVG/<processId>.svg`
 - explicit `generate` and `verify` commands for local use and CI
@@ -43,37 +43,37 @@ The tool does not require a system Chrome install or a hardcoded Chrome path.
 Generate all BPMN SVGs for a consumer repo:
 
 ```bash
-npx bpmn-svg generate --root /path/to/consumer-repo --all
+npx bpmn-svg generate --root ./consumer-repo --all
 ```
 
 Generate to a custom output directory:
 
 ```bash
-npx bpmn-svg generate --root /path/to/consumer-repo --all --output-dir /tmp/processSVG
+npx bpmn-svg generate --root ./consumer-repo --all --output-dir ./processSVG
 ```
 
 Generate one BPMN file:
 
 ```bash
-npx bpmn-svg generate --input /path/to/consumer-repo/src/main/resources/com/example/process.bpmn2
+npx bpmn-svg generate --input ./consumer-repo/src/main/resources/com/example/process.bpmn2
 ```
 
 Generate SVGs only for BPMNs changed from a git base ref:
 
 ```bash
-npx bpmn-svg generate --root /path/to/consumer-repo --changed --base origin/main
+npx bpmn-svg generate --root ./consumer-repo --changed --base origin/main
 ```
 
 Verify coverage and staleness:
 
 ```bash
-npx bpmn-svg verify --root /path/to/consumer-repo
+npx bpmn-svg verify --root ./consumer-repo
 ```
 
 Verify a custom output directory:
 
 ```bash
-npx bpmn-svg verify --root /path/to/consumer-repo --output-dir /tmp/processSVG
+npx bpmn-svg verify --root ./consumer-repo --output-dir ./processSVG
 ```
 
 ## CI or Jenkins
