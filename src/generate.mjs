@@ -4,7 +4,7 @@ import { buildBpmnCatalog, discoverBpmnFiles } from "./discovery.mjs";
 import { findChangedBpmnFiles } from "./git.mjs";
 import { resolveConsumerRoot, getRelativeToRoot, getSvgOutputDir, toPosix } from "./paths.mjs";
 import { readBpmnDescriptor } from "./bpmn.mjs";
-import { renderSvg } from "./renderer.mjs";
+import { createSvgRenderer } from "./renderer.mjs";
 import { sanitizeSvgOutput } from "./svg.mjs";
 
 function getConfiguredSvgOutputPath(consumerRoot, outputDir, processId) {
@@ -49,16 +49,21 @@ export async function runGenerate(options) {
   const svgOutputDir = getSvgOutputDir(consumerRoot, options.outputDir);
   await fs.mkdir(svgOutputDir, { recursive: true });
 
-  for (const descriptor of descriptors) {
-    const outputPath = getConfiguredSvgOutputPath(consumerRoot, options.outputDir, descriptor.processId);
-    const svg = await renderSvg({
-      bpmnXml: descriptor.xml,
-      sourcePathLabel: getRelativeToRoot(consumerRoot, descriptor.filePath),
-    });
-    const content = sanitizeSvgOutput(svg);
+  const renderer = await createSvgRenderer();
+  try {
+    for (const descriptor of descriptors) {
+      const outputPath = getConfiguredSvgOutputPath(consumerRoot, options.outputDir, descriptor.processId);
+      const svg = await renderer.renderSvg({
+        bpmnXml: descriptor.xml,
+        sourcePathLabel: getRelativeToRoot(consumerRoot, descriptor.filePath),
+      });
+      const content = sanitizeSvgOutput(svg);
 
-    await fs.writeFile(outputPath, content, "utf8");
-    console.log(`${toPosix(descriptor.filePath)} -> ${toPosix(outputPath)}`);
+      await fs.writeFile(outputPath, content, "utf8");
+      console.log(`${toPosix(descriptor.filePath)} -> ${toPosix(outputPath)}`);
+    }
+  } finally {
+    await renderer.close();
   }
 
   return { generated: descriptors.length };

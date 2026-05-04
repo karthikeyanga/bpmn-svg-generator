@@ -1,6 +1,6 @@
 {
   "name": "bpmn-svg-generator",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Reusable BPMN-to-SVG generator for Kogito-compatible process SVG assets.",
   "type": "module",
   "files": [
@@ -37,7 +37,7 @@
   },
   "homepage": "https://github.com/karthikeyanga/bpmn-svg-generator#readme",
   "dependencies": {
-    "@kie-tools/kie-editors-standalone": "^10.1.0",
+    "@kie-tools/bpmn-editor-standalone": "^10.2.0",
     "fast-xml-parser": "^5.3.0",
     "playwright": "^1.54.2"
   },

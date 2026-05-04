@@ -7,7 +7,9 @@ import { chromium } from "playwright";
 import { installChromiumBrowser, isMissingPlaywrightBrowserError } from "./playwright.mjs";
 
 const require = createRequire(import.meta.url);
-const standaloneBundlePath = require.resolve("@kie-tools/kie-editors-standalone/dist/bpmn/index.js");
+const standaloneBundlePath =
+  process.env.BPMN_SVG_STANDALONE_BUNDLE_PATH || require.resolve("@kie-tools/bpmn-editor-standalone/dist/index.js");
+const defaultReadyDelayMs = Number(process.env.BPMN_SVG_READY_DELAY_MS || 500);
 
 async function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -42,62 +44,117 @@ async function createHostPage() {
   return { tempDir, hostUrl: pathToFileURL(hostPath).href };
 }
 
-export async function renderSvg({
-  bpmnXml,
-  sourcePathLabel,
-  timeoutMs = Number(process.env.BPMN_SVG_RENDER_TIMEOUT_MS || 90000),
-}) {
-  let browser;
-  const browserMessages = [];
-  let tempDir;
-
+async function launchBrowser() {
   try {
-    try {
-      browser = await chromium.launch({ headless: true });
-    } catch (error) {
-      if (!isMissingPlaywrightBrowserError(error)) {
-        throw error;
-      }
+    return await chromium.launch({ headless: true });
+  } catch (error) {
+    if (!isMissingPlaywrightBrowserError(error)) {
+      throw error;
+    }
 
-      console.error("Playwright Chromium is not installed yet. Bootstrapping it now...");
-      await installChromiumBrowser();
-      browser = await chromium.launch({ headless: true });
+    console.error("Playwright Chromium is not installed yet. Bootstrapping it now...");
+    await installChromiumBrowser();
+    return await chromium.launch({ headless: true });
+  }
+}
+
+export async function createSvgRenderer({
+  timeoutMs = Number(process.env.BPMN_SVG_RENDER_TIMEOUT_MS || 90000),
+  readyDelayMs = defaultReadyDelayMs,
+} = {}) {
+  const browser = await launchBrowser();
+  let page;
+  let tempDir;
+  const browserMessages = [];
+
+  async function getPage() {
+    if (page) {
+      return page;
     }
 
     const hostPage = await createHostPage();
     tempDir = hostPage.tempDir;
-
-    const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
+    page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
     page.on("console", (message) => {
       browserMessages.push(`[${message.type()}] ${message.text()}`);
     });
     page.on("pageerror", (error) => {
       browserMessages.push(`[pageerror] ${error?.stack || String(error)}`);
     });
+    page.on("requestfailed", (request) => {
+      browserMessages.push(`[requestfailed] ${request.url()} ${request.failure()?.errorText || ""}`.trim());
+    });
     await page.goto(hostPage.hostUrl);
     await page.addScriptTag({ path: standaloneBundlePath });
+    return page;
+  }
+
+  return {
+    async renderSvg({ bpmnXml, sourcePathLabel }) {
+      return renderSvgWithPage({
+        page: await getPage(),
+        browserMessages,
+        bpmnXml,
+        sourcePathLabel,
+        timeoutMs,
+        readyDelayMs,
+      });
+    },
+    async close() {
+      try {
+        if (page) {
+          await page.close();
+        }
+      } finally {
+        await browser.close();
+        if (tempDir) {
+          await fs.rm(tempDir, { recursive: true, force: true });
+        }
+      }
+    },
+  };
+}
+
+async function renderSvgWithPage({ page, browserMessages, bpmnXml, sourcePathLabel, timeoutMs, readyDelayMs }) {
+  const browserMessageStart = browserMessages.length;
+  try {
+    const renderPromise = page
+      .evaluate(
+        async ({ xml, sourcePath, readyDelayMs }) => {
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+          const windowWithEditor = window;
+
+          if (!windowWithEditor.__bpmnSvgGeneratorEditor) {
+            windowWithEditor.__bpmnSvgGeneratorEditor = window.BpmnEditor.open({
+              container: document.getElementById("container"),
+              initialContent: Promise.resolve(xml),
+              initialFileNormalizedPosixPathRelativeToTheWorkspaceRoot: sourcePath,
+              readOnly: true,
+            });
+            await sleep(readyDelayMs);
+          } else {
+            await windowWithEditor.__bpmnSvgGeneratorEditor.setContent(sourcePath, xml);
+          }
+
+          return await windowWithEditor.__bpmnSvgGeneratorEditor.getPreview();
+        },
+        { xml: bpmnXml, sourcePath: sourcePathLabel, readyDelayMs }
+      )
+      .catch((error) => {
+        const renderMessages = browserMessages.slice(browserMessageStart);
+        if (renderMessages.length) {
+          throw new Error(`${error.message}\nBrowser messages:\n${renderMessages.join("\n")}`, { cause: error });
+        }
+        throw error;
+      });
 
     const svg = await withTimeout(
-      page.evaluate(
-        async ({ xml, sourcePath }) => {
-          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-          const editor = window.BpmnEditor.open({
-            container: document.getElementById("container"),
-            initialContent: Promise.resolve(""),
-            readOnly: true,
-          });
-
-          await sleep(5000);
-          await editor.setContent(sourcePath, xml);
-          await sleep(5000);
-
-          return await editor.getPreview();
-        },
-        { xml: bpmnXml, sourcePath: sourcePathLabel }
-      ),
+      renderPromise,
       timeoutMs,
-      () => `Rendering ${sourcePathLabel}${browserMessages.length ? `\nBrowser messages:\n${browserMessages.join("\n")}` : ""}`
+      () => {
+        const renderMessages = browserMessages.slice(browserMessageStart);
+        return `Rendering ${sourcePathLabel}${renderMessages.length ? `\nBrowser messages:\n${renderMessages.join("\n")}` : ""}`;
+      }
     );
 
     await delay(100);
@@ -107,12 +164,21 @@ export async function renderSvg({
     }
 
     return svg.trim();
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function renderSvg({
+  bpmnXml,
+  sourcePathLabel,
+  timeoutMs = Number(process.env.BPMN_SVG_RENDER_TIMEOUT_MS || 90000),
+  readyDelayMs = defaultReadyDelayMs,
+}) {
+  const renderer = await createSvgRenderer({ timeoutMs, readyDelayMs });
+  try {
+    return await renderer.renderSvg({ bpmnXml, sourcePathLabel });
   } finally {
-    if (browser) {
-      await browser.close();
-    }
-    if (tempDir) {
-      await fs.rm(tempDir, { recursive: true, force: true });
-    }
+    await renderer.close();
   }
 }

@@ -16,9 +16,10 @@ Initial standalone CLI scaffold with:
 
 - BPMN discovery under `src/main/resources`
 - BPMN process-id extraction
-- SVG generation through `@kie-tools/kie-editors-standalone`
+- SVG generation through `@kie-tools/bpmn-editor-standalone`
 - verification for missing, stale, orphaned, and duplicate outputs
 - optional changed-file generation via `git diff`
+- browser reuse during generation so multi-file renders do not relaunch Chromium per BPMN
 
 ## Install
 
@@ -105,6 +106,7 @@ npx bpmn-svg verify --root "$WORKSPACE/engine" --output-dir "$WORKSPACE/generate
 ```
 
 Set `BPMN_SVG_RENDER_TIMEOUT_MS` if large diagrams need a longer render timeout.
+Set `BPMN_SVG_READY_DELAY_MS` if the editor needs a longer delay before preview extraction. The default is `500`.
 
 ## Release and publish
 
